@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <title>Password Requirement checking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://bootswatch.com/4/minty/bootstrap.css">
+    <link rel="stylesheet" href="https://bootswatch.com/_assets/css/custom.min.css">
+    <style>
+        .passwordRule.--is-valid {
+            color: #78c2ad;
+            font-weight: bold;
+        }
+        .passwordRule.--has-error {
+          color: #f3969a;
+          font-weight: bold;
+        }
+        .form__wrapper {
+            max-width: 530px;
+            margin: 0 !important;
+        }
+        body {
+            min-height: calc(100vh - 70px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 70px !important;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="navbar navbar-expand-lg fixed-top navbar-dark bg-primary" style="">
+      <div class="container">
+        <a href="../" class="navbar-brand">Enter your password</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </div>
+   
+   <main>
+            <div class="form__wrapper form panel panel-color panel-inverse">
+              
+                <div class="panel panel-body" id="pref">
+                    <h4>Forgot your password?</h4>
+                    <p>Update your password by creating a new one here. Your new password must match the criteria listed below.</p>
+                    
+                    <div class="form__rules">
+                        <ul>
+                            <li id="lengthEl" class="passwordRule">Must be between 8 and 30 characters.</li>
+                            <li id="uppercaseEl" class="passwordRule">Must contain at least one uppercase, or capital, letter.</li>
+                            <li id="lowercaseEl" class="passwordRule">Must contain at least one lowercase letter.</li>
+                            <li id="digitEl" class="passwordRule">Must contain at least one number digit (ex: 0, 1, 2, 3, etc.)</li>
+                            <li id="specialCharEl" class="passwordRule">Must contain at least one special character (ex: $ # @ ! % & * ( ) -)</li>
+                            <li id="containsNameEl" class="passwordRule">Must not contain first name, last name, or username.</li>
+                            <li id="confirmsPasswordEl" class="passwordRule">Must match confirm password.</li>
+                        </ul>
+                    </div>
+    
+                    <p class="small italic">Note: For security purposes, this link will expire after 1 hour.</p>
+                    
+                    <form onsubmit="update_password_ajax(event);">
+                        <input type="hidden" name="cust_id" value="1">
+                        <input type="hidden" name="udtk" id="token" value="1">
+                        <input type="hidden" name="genuser_id" id="genuser_id" value="1">
+                        <input type="hidden" name="genuser_name" id="genuser_name" value="user1">
+                        <input type="hidden" name="genuser_last_name" id="genuser_lastname"  value="smith">
+                        <input type="hidden" name="genuser_first_name" id="genuser_firstname" value="mike">
+                        <div class="form__group">
+                            <div class="form__input">
+                                <input
+                                    id="password"
+                                    type="password"
+                                    name="password" 
+                                    class="form-control"
+                                    value=""
+                                    required
+                                >
+                                <label for="password" class="">New Password</label>
+                            </div>
+                            <div class="form__input">
+                                <input
+                                    id="password_confirm"
+                                    type="password"
+                                    name="vpassword"
+                                    class="form-control"
+                                    value=""
+                                    required
+                                >
+                                <label for="vpassword" class="">Confirm Password</label>
+                                <p>Username is <b>user1</b>, first name is <b>mike</b>
+                                  last name is <b>smith</b></p>
+                            </div>
+                            <div class="form__response">
+                                <p id="submission_response"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <button
+                                id="updatePassword"
+                                class="btn btn-primary"
+                                type="submit"
+                                disabled
+                            >
+                                Update Password
+                            </button>
+                        </div>
+                    </form>
+                    <div id="password_message" class="form__response"></div>
+                    <p class="text-align-right">Go to <a href="#">Login Page</a></p>
+                </div>
+            </div>
+        </main>   
+   
+  <script src="https://bootswatch.com/_vendor/jquery/dist/jquery.min.js"></script>
+    <script src="https://bootswatch.com/_vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://bootswatch.com/_assets/js/custom.js"></script>
+      <script>
+            const inputEls = document.querySelectorAll('.form__input input');
+            const passwordInputEl = document.querySelector('#password');
+            const confirmPasswordInputEl = document.querySelector('#password_confirm');
+            const serverMsgEl = document.querySelector('#password_message');
+            const submitBtn = document.querySelector('#updatePassword');
+            const [
+                lengthEl,
+                upperCaseEl,
+                lowerCaseEl,
+                digitEl,
+                specialCharEl,
+                containsNameEl,
+                confirmsPasswordEl,
+            ] = Array.from(document.querySelectorAll('.passwordRule'));
+            const rules = {
+                minLength: 8,
+                maxLength: 14,
+                upper: /[A-Z]+/,
+                lower: /[a-z]+/,
+                number: /[0-9]+/,
+                specialChar: /[$@#&!%*()+-]/,
+                invalidNames: [$('#genuser_name').val(), $('#genuser_firstname').val(), $('#genuser_lastname').val()],
+            };
+            let state = {
+                password: '',
+                password_confirm: '',
+                errors: {
+                    confirmsPasswordEl: 'Must match confirm password.',
+                },
+            };
+
+            function handleKeyup(e) {console.log("1");
+                if (e.key === 'Tab' || e.key === 'Shift') return;
+
+                const focusedEl = e.target;
+                const currentElId = focusedEl.id;
+                
+                // mirror user input to state
+                state[currentElId] = focusedEl.value;
+
+                // validate passwords
+                validatePassword(state[currentElId], currentElId);
+            }
+
+            function handleBlur() {
+                validatePassword(state.password);
+                if (this.value.length > 0) {
+                    this.classList.add('--is-filled');
+                } else {
+                    this.classList.remove('--is-filled');
+                }
+            }
+
+            function validatePassword(pw, input) {
+                if (input === 'password') {
+                    // PW length is between the min and max length rule
+                    if (pw.length >= rules.minLength && pw.length <= rules.maxLength) {
+                        updateUiState(true, lengthEl);
+                    } else {
+                        updateUiState(false, lengthEl);
+                    }
+                    // PW contains an uppercase char
+                    if (rules.upper.test(pw)) {
+                        updateUiState(true, upperCaseEl);
+                    } else {
+                        updateUiState(false, upperCaseEl);
+                    }
+                    // PW contains a lowercase char
+                    if (rules.lower.test(pw)) {
+                        updateUiState(true, lowerCaseEl);
+                    } else {
+                        updateUiState(false, lowerCaseEl);
+                    }
+                    // PW contains a number
+                    if (rules.number.test(pw)) {
+                        updateUiState(true, digitEl);
+                    } else {
+                        updateUiState(false, digitEl);
+                    }
+                    // PW contains a special char
+                    if (rules.specialChar.test(pw)) {
+                        updateUiState(true, specialCharEl);
+                    } else {
+                        updateUiState(false, specialCharEl);
+                    }
+                    // PW doesn't contain sensitive user info
+                    if (!pwContainsUserInfo(pw)) {
+                        updateUiState(true, containsNameEl);
+                    } else {
+                        updateUiState(false, containsNameEl);
+                    }
+                }
+
+                comparePasswords(state.password, state.password_confirm);
+                
+                // Password is good to go, enable the submit btn
+                if (Object.keys(state.errors).length === 0) {
+                    submitBtn.disabled = false;
+                } else {
+                    submitBtn.disabled = true;
+                }
+            }
+
+            function comparePasswords(pw, pwConfirm) {
+                if (pw === pwConfirm) {
+                    updateUiState(true, confirmsPasswordEl);
+                } else {
+                    updateUiState(false, confirmsPasswordEl);
+                }
+            }
+
+            function pwContainsUserInfo(pw) {
+                const password = pw.toLowerCase();
+                for (let i = 0; i < rules.invalidNames.length; i++) {
+                    const value = rules.invalidNames[i].toLowerCase();
+                    if (password.includes(value)) return true;
+                }
+                return false;
+            }
+
+            function updateUiState(isValid, ruleEl) {
+                if (isValid) {
+                    ruleEl.classList.remove('--has-error');
+                    ruleEl.classList.add('--is-valid');
+                    updateErrors(ruleEl.id, true);
+                } else {
+                    ruleEl.classList.remove('--is-valid');
+                    ruleEl.classList.add('--has-error');
+                    updateErrors(ruleEl.id, false, ruleEl.innerText);
+                }
+            }
+
+            function updateErrors(errName, removeError = false, errMsg = '') {
+                if (removeError) {
+                    delete state.errors[errName];
+                } else if (!state.errors[errName]) {
+                    state.errors[errName] = errMsg;
+                }
+            }
+
+            // event listeners
+            passwordInputEl.addEventListener('keyup', handleKeyup);
+            confirmPasswordInputEl.addEventListener('keyup', handleKeyup);
+            inputEls.forEach(input => {
+                input.addEventListener('blur', handleBlur);
+            });
+
+            // PW is validated on the frontend - send the request to the server
+            function update_password_ajax(e) {
+                e.preventDefault();
+                serverMsgEl.innerHTML = '<span>Checking...</span>';
+
+                // package up the form data
+                const data = {
+                    password: $("#password").val(),
+                    genuser_id: $("#genuser_id").val(),
+                    token: $("#token").val(),
+                };
+
+                // send the request to the server
+                $.ajax({
+                    type: "POST",
+                    url:  "url_here",
+                    dataType: "json",
+                    data,
+                    success: function(msg){
+                        if (msg.success) {
+                            serverMsgEl.innerHTML = `<span>Success! ${msg.message}</span>`;
+                        } else {
+                            serverMsgEl.innerHTML = `<span class="error">Failed. ${msg.message}</span>`;
+                        }
+                    },
+                    error: function (xhr, ajaxOptions, thrownError) {
+                        serverMsgEl.innerHTML = `<span class="error">Server Error: ${xhr.status}- ${thrownError}</span>`;
+                    }
+                });
+            }
+        </script>
+  </body>
+</html>
